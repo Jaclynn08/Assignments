@@ -1,0 +1,157 @@
+---
+title: 'problem set #4, 602'
+author: "Jaclynn Martinez"
+date: "2026-11-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("C:/Users/jacly/Downloads/POLS-309")
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+set.seed(7494)
+```
+
+```{r}
+
+df<- read.csv("thermometers_hw04.csv")
+df <- df %>%
+  filter(!is.na(ft_immig) & ft_immig != "") %>%
+  filter(!is.na(ft_dem) & ft_dem != "")
+
+
+```
+
+# 1.a
+
+```{r}
+#recoding ft_immig column --> *do not change into factor! then you can't run the regression
+df$ft_immig[df$ft_immig%in% 0:19]<-1
+df$ft_immig[df$ft_immig%in% 20:39]<-2
+df$ft_immig[df$ft_immig%in%40:59]<-3
+df$ft_immig[df$ft_immig%in% 60:79]<-4
+df$ft_immig[df$ft_immig%in%80:100]<-5
+
+#checking new values
+table(df$ft_immig)
+
+
+im_dem_model<- lm(ft_immig~ft_dem, data=df)
+summary(im_dem_model)
+```
+
+A one unit increase on the feeling thermometer for democrats is associated with a 0.016 unit higher expected value of the warmth feeling thermometer for immigrants.
+
+# 1.b
+
+```{r}
+
+df<-df %>%
+  mutate(two=ifelse(ft_immig>=2 ,1,0))%>%
+  mutate(three= ifelse(ft_immig>=3,1,0))%>%
+  mutate(four=ifelse(ft_immig>=4,1,0))%>%
+  mutate(five=ifelse( ft_immig>= 5,1,0))
+  
+b_model_two<-lm(two~ft_dem,data=df)
+b_model_three<-lm(three~ft_dem,data=df)
+b_model_four<-lm(four~ft_dem,data=df)
+b_model_five<-lm(five~ft_dem,data=df)
+
+summary(b_model_two)
+summary(b_model_three)
+summary(b_model_four)
+summary(b_model_five)
+
+#adding together all slopes to ensure they are the same as the lm model run in part (a)
+0.0047892+0.0057298+0.0033948+0.0020987
+```
+
+Slope when variable is 2: 0.002\
+Slope when variable is 3: 0.003\
+Slope when variable is 4: 0.006 (0.0057)\
+Slope when variable is 5: 0.005 (0.0047)\
+\
+Each of the slopes are different.\
+The greatest probability of moving up a category is when the variable is 4 or greater but when the variable is 5 or greater the slope decreases slightly.\
+\
+Adding up all the slopes:\
+0.0047892+0.0057298+0.0033948+0.0020987 = 0.0160125\
+When added all together, the four slopes equal the slope found in part (a), which included all categorical variables 1-5.
+
+# 1.c
+
+```{r}
+im_dem_model
+residuals<-resid(im_dem_model)
+fitted<-fitted(im_dem_model)
+
+a<- ggplot(df,aes(x=fitted, y= residuals))+
+  geom_point()+
+  geom_hline(yintercept=0, linetype="dashed", color="red")+
+  labs(x= "Fitted Values", y= "Residuals",
+       title= " Residuals vs Fitted Values")
+
+# residual vs fitted plot for k=3
+residuals.b<-resid(b_model_three)
+fitted.b<-fitted(b_model_three)
+b<-ggplot(df,aes(x=fitted.b, y= residuals.b))+
+  geom_point()+
+  geom_hline(yintercept=0, linetype="dashed", color="orange")+
+  labs(x= "Fitted Values", y= "Residuals",
+       title= " Residuals vs Fitted Values: k=3")
+
+a+b
+```
+
+The errors are not constant. They create lines in the graph; which represent each categorical variable. For the plot representing k=3, the variable used in the lm model only has two outcomes: 1 or 0. Thus, there are only two bands represented in the plot.
+
+# 1.d
+
+```{r}
+#resetting the ft_immig numbers back to thermometer. 
+
+df<- read.csv("thermometers_hw04.csv")
+df <- df %>%
+  filter(!is.na(ft_immig) & ft_immig != "") %>%
+  filter(!is.na(ft_dem) & ft_dem != "")
+
+
+k<- c(3,5,10,50,100) #creating k 
+results<- data.frame(k= integer(), slopecat_converted=numeric(), r2of.cat= numeric(),slope_t=numeric(), r2.t=numeric()) #empty vector to store loop results. 
+
+
+for(k in k){
+  ft.immig_cat<-cut(df$ft_immig,
+         breaks=seq(min(df$ft_immig),max(df$ft_immig),length.out= k+1),labels= FALSE, include.lowest = TRUE) #creating cutoff points k
+  
+  model.ftimmig.cat<- lm (ft.immig_cat~ ft_dem, data=df) #creating a lm model using the categorical version of ft_immig
+  
+  slopeof.cat<- coef(model.ftimmig.cat)["ft_dem"] # slope of categorical ft_immig
+  r2of.cat<- summary(model.ftimmig.cat)$r.squared
+  
+  slopecat_converted<- (slopeof.cat*100)/k #converting slope from categorical back to thermom. scale. 
+
+  #original thermometer regression to compare k slope values against 
+model.t<-lm(ft_immig~ft_dem, data=df)
+slope_t<- coef(model.t)["ft_dem"]
+r2.t<- summary(model.t)$r.squared
+
+results<- rbind(results, data.frame(k=k, 
+                                    slopecat_converted=slopecat_converted, 
+                                    r2of.cat=r2of.cat,
+                                    slope_t=slope_t,
+                                    r2.t=r2.t))
+
+         
+}
+
+print(results)
+
+
+```
+
+As K increases the categorical slope and r2 (slopecat_converted & r2.cat) grows similar to the original thermometer slope and r2 score (slope_t & r2.t).\
+Thus, the more categories you have the more accurate your regression coefficients will be.
