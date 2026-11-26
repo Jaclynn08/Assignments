@@ -1,0 +1,54 @@
+---
+title: 'Pols 602: Problem Set #1'
+author: "Jaclynn Martinez"
+date: "2026-09-14"
+output: html_document
+---
+
+## Problem Set 1
+
+```{r, include=FALSE}
+library(tidyverse)
+setwd("C:/Users/jacly/Downloads/POLS-309")
+voting<- read.csv("voting.csv")
+str(voting, include= FALSE)
+```
+
+#### Data Analysis
+
+Q. 1
+
+What is the treatment variable? The message sent.
+
+Is the variable discrete or continuous? Discrete
+
+What is the variable's data type? Character
+
+Q. 2
+
+```{r}
+bi.message<- voting%>%
+  mutate(Binary_Message=ifelse(message=="yes",1,0))
+
+```
+
+Q. 3 
+```{r}
+head(bi.message)
+# Did they receive the message:
+# 'no' is everyone who did not receive a message
+#'yes' is eveyone who did receive a message 
+no<- bi.message%>%
+  filter(Binary_Message==0)
+yes<-bi.message%>%
+  filter(Binary_Message==1)
+#once filtered,  I take the mean of the voted variable. 
+mean(no$voted)
+mean(yes$voted)
+
+```
+Average outcome for treatment group:
+
+Average outcome for control group:
+
+Interpretation:

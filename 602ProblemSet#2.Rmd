@@ -1,0 +1,211 @@
+---
+title: 'Problem Set #2'
+author: "Jaclynn Martinez"
+date: "2026-10-31"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+setwd("C:/Users/jacly/Downloads/POLS-309")
+library(tidyverse)
+library(MASS)
+library(dplyr)
+library(ggplot2)
+library(lmPerm) 
+library(modelsummary)
+```
+
+# Q.1
+
+```{r}
+set.seed(22)
+n=1000 #number of observations
+num_sim=1000 # number of simulations
+p<-0.5 #covariance 
+
+beta_one<- numeric(num_sim) #empty vector to hold beta_one coefficients 
+varcov<-matrix(c(1,p,p,1),2,2) #covariance matrix and specifying a 2x2 matrix.
+
+for (i in 1:num_sim) {
+  covariates<-mvrnorm(n,mu=c(1,2),Sigma=varcov) #using mvrnorm to simulate random data. n= number of observations. mu= mean of variable. X will have a mean of 1. Z will have a mean of 2. Sigma= the covariance matrix
+  colnames(covariates)<-c('X','Z') # nameing the columns
+  covariates <- as.data.frame(covariates) # converting into a dataframe
+  X<-covariates[,1] #taking values from the first column of the covariate matrix. 
+  Z<-covariates[,2] #taking values from the second column of the covariate matrix. 
+  e<-rnorm(n) #random error
+  y<- 2+ 5*X + 3*Z+e # DGP
+  
+  model<- lm(y ~X+Z) #linear regression
+  beta_one[i] <- coef(model)["X"] 
+  #creating a vector of my treatment coefficients using the empty vector made in the beginning. 
+}
+
+beta1<-data.frame(beta1=beta_one) #converting vector into dataframe. 
+```
+
+### 1.a
+
+```{r}
+
+
+#plotting the sampling distribution 
+ggplot(beta1,aes(x=beta1))+
+  geom_histogram(bins = 60,binwidth= 0.01, fill="darkgreen",color="lightblue", alpha=0.5)+
+  labs(title="Sampling Distribution of Treatment Variable",
+       x= "Estimated Treatment Coefficient",
+       y= "Density")+
+  theme_light()
+  
+```
+
+### 1.b
+
+```{r}
+set.seed(220)
+samples <- 1000  # number of bootstrap replicates
+n <- length(beta_one)   # setting length to be the same as the length of the beta_one vector              
+boot_means <- numeric(samples) # empty vector to hold beta_means values 
+
+#creating a for loop to run repeated simulations for the bootstrapped standard errors using mean. 
+for (b in 1:samples) {
+  idbeta_one <- sample(seq_len(n), size = n, replace = TRUE) # idbeta_one will create many different samples of the same length as n. Replace= TRUE allows for numbers to repeated. 
+  boot_means[b] <- mean(beta_one[idbeta_one]) # new samples will be stored in the boot_means vector. 
+}
+
+boot_df <- data.frame(boot_mean = boot_means) # converting into a data frame 
+boot_summary <- data.frame(
+  estimate = mean(beta_one),  
+  boot_se  = sd(boot_means),  # bootstrapped standard errors are calculated by getting the standard deviation of the boot_means
+  ci_lower = as.numeric(quantile(boot_means, 0.025)), # setting the confidence intervals 
+  ci_upper = as.numeric(quantile(boot_means, 0.975))
+)
+
+# The bootstrap standard error 
+boot_summary$boot_se
+
+
+#Bootstrap plot 
+ggplot(boot_df, aes(x = boot_mean)) +
+  geom_histogram( bins=60,fill = "#F0FFFF", colour = "#838B8B") +
+  geom_vline(aes(xintercept = estimate),  data = boot_summary,
+             colour = "#838B8B", linewidth = 1) +
+  geom_vline(aes(xintercept = ci_lower),  data = boot_summary,
+             colour = "#CDB79E", linetype = "dashed", linewidth = 1) +
+  geom_vline(aes(xintercept = ci_upper),  data = boot_summary,
+             colour = "#CDB79E", linetype = "dashed", linewidth = 1) +
+  labs(
+    title    = "Bootstrap distribution of the mean",
+    x = "Bootstrap sample means", y = "Count"
+  ) +
+  theme_bw()
+```
+
+### 1.c
+
+```{r}
+set.seed(567)
+n=1000 #number of observations
+num_sim=1000 # number of simulations
+p<-0.5 #covariance 
+
+beta_1<- numeric(num_sim) #empty vector to hold beta_one coefficients 
+varcov.c<-matrix(c(1,p,p,1),2,2) #covariance matrix and specifying a 2x2 matrix.
+
+for (i in 1:num_sim) {
+  covariates.c<-mvrnorm(n,mu=c(1,2),Sigma=varcov.c) #using mvrnorm to simulate random data. n= number of observations. mu= mean of variable. X will have a mean of 1. Z will have a mean of 2. Sigma= the covariance matrix
+  colnames(covariates.c)<-c('X','Z') # naming the columns
+  covariates.c <- as.data.frame(covariates.c) # converting into a data frame
+  X.c<-covariates.c[,1] #taking values from the first column of the co-variate matrix. 
+  Z.c<-covariates.c[,2] #taking values from the second column of the co-variate matrix. 
+  e.c<-rnorm(n) #random error
+  y.c<- 2+ 5*X.c + 3*Z.c+e.c # DGP
+  
+  model2<- lm(y.c ~X.c) #linear regression omitting confounding variable. 
+  beta_1[i] <- coef(model2)["X.c"] 
+  #creating a vector of my treatment coefficients using the empty vector made in the beginning. 
+}
+
+beta.c<-data.frame(beta.c=beta_1) #converting vector into data frame. 
+
+#plotting the sampling distribution 
+ggplot(beta.c,aes(x=beta.c))+
+  geom_histogram(binwidth=0.01,fill="lightblue",color="darkgreen", alpha=0.5)+
+  labs(title="Sampling Distribution of Treatment Variable + Omitting Confounding Variable",
+       x= "Estimated Treatment Coefficient",
+       y= "Density")+
+  theme_light()
+```
+
+Interpretation: This new distribution is biased and the statistical tests can no longer be used to determine causal effects.
+
+# Problem 2
+
+```{r}
+df<-read.csv("voting.csv") #loading in 'voting' data from the github 
+str(df)
+```
+
+### 2.a
+
+Null Hypothesis:Receiving a message had no effect on someones probability to vote. Hypothesis: Receiving a message did have an effect on the probability to vote.
+
+```{r}
+set.seed(4563)
+t.test(voted~message,data= df,alternative="two.sided",var.equal= FALSE,  conf.level = 0.95)
+```
+
+I chose to do a t-test because the sample was large and the population values are not known. The t-score is statistically significant because it is smaller than 0.05.
+
+### 2.b
+
+```{r}
+set.seed(6583)
+# I am changing the character values in the data set into numbers so that it can be run through the linear model. 
+df$message[df$message=="no"]<-0 
+df$message[df$message=="yes"]<-1
+
+model<-lm(voted~message,data=df) 
+
+summary(model)
+```
+
+*Coefficient:* When people did receive a message their chance of voting increased by 8.1%.
+
+*Standard Error:* The standard error for when people did receive a message is 0.0026; This tells us that the estimate is close to the population true value. It also tells us that there is low variance in our estimate.
+
+*T-Value:* A t-value score of 31.4 tells us that there is a positive relationship between receiving a message and the probability of voting. A large t-score tells us that the relationship is strong between receiving a message and the chance of voting.
+
+*P-Value:* The p-value comes out to be significant. This tells us that we can reject the null hypothesis.
+
+### 2.c
+
+```{r}
+set.seed(890)
+# difference of means of the data
+dif.means<- mean(df$voted[df$message== 1 ])-
+  mean(df$voted[df$message==0])
+
+# difference of means of the null distribution 
+perm<- replicate(1000,{
+  mix<- sample(df$message)
+  mean(df$voted[mix==1])- mean(df$voted[mix==0])
+  })
+# comparing the difference between the null distribution and the data. 
+comp<-mean(abs(perm)>= abs(dif.means)) #p-value for the permutation test. 
+
+comp
+
+View(dif.means)
+
+#plot
+
+hist(perm, breaks = 20, xlim= range(c(perm, dif.means)),
+     main = " Permutation Test",
+     xlab = "Difference in Voting")
+abline(v = dif.means, col = "red", lwd = 2)
+
+```
+
+The permutation result being 0 allows us to reject the null. This small value tells us that there is an existing relationship between receiving a message and voting. Both p-values from parts a and b are also essentially 0 allowing us to reject the null as well.
